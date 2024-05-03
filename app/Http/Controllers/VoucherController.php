@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Voucher;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VoucherController extends Controller
@@ -34,7 +33,31 @@ class VoucherController extends Controller
             DB::rollBack();
             throw $th;
         }
-        
+
         return redirect()->route('vouchers.index');
     }
+
+    public function redeemLockForUpdate($id)
+    {
+        DB::beginTransaction();
+        try {
+            $voucher = Voucher::lockForUpdate()->find($id);
+            if ($voucher->used >= $voucher->quota) {
+                throw new \Exception('Voucher has been used up');
+            }
+            $voucher->used++;
+            $voucher->save();
+
+            $voucher->logs()->create([
+                'voucher_id' => $voucher->id,
+            ]);
+            DB::commit();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
+
+        return redirect()->route('vouchers.index');
+    }
+
 }
